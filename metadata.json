@@ -1,10 +1,10 @@
 {
-    "name": "WireGuard Indicator",
-    "description": "Manage WireGuard VPN from Desktop",
+    "name": "Tunnel Indicator",
+    "description": "Manage SSH Tunnels from Desktop",
     "shell-version": ["3.36"],
-    "url": "https://github.com/atareao/wireguard-indicator", 
-    "uuid": "wireguard-indicator@atareao.es",
-    "gettext-domain": "wireguard-indicator@atareao.es", 
-    "settings-schema": "es.atareao.wireguard-indicator",
+    "url": "https://github.com/atareao/tunnel-indicator", 
+    "uuid": "tunnel-indicator@atareao.es",
+    "gettext-domain": "tunnel-indicator@atareao.es", 
+    "settings-schema": "es.atareao.tunnel-indicator",
     "version": 1
 }

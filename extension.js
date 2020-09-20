@@ -1,5 +1,5 @@
 /*
- * wireguard-indicator@atareao.es
+ * tunnel-indicator@atareao.es
  *
  * Copyright (c) 2020 Lorenzo Carbonell Cerezo <a.k.a. atareao>
  *
@@ -33,6 +33,7 @@ imports.gi.versions.GLib = "2.0";
 const {Gtk, Gdk, Gio, Clutter, St, GObject, GLib} = imports.gi;
 
 const MessageTray = imports.ui.messageTray;
+const ByteArray = imports.byteArray;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
@@ -54,12 +55,8 @@ function notify(msg, details, icon='tasker') {
     source.notify(notification);
 }
 
-function getValue(keyName){
-    return Convenience.getSettings().get_value(keyName).deep_unpack();
-}
-
-var WireGuardIndicator = GObject.registerClass(
-    class WireGuardIndicator extends PanelMenu.Button{
+var TunnelIndicator = GObject.registerClass(
+    class TunnelIndicator extends PanelMenu.Button{
         _init(){
             super._init(St.Align.START);
             this._settings = Convenience.getSettings();
@@ -74,21 +71,24 @@ var WireGuardIndicator = GObject.registerClass(
                                       y_align: Clutter.ActorAlign.CENTER });
             //box.add(label);
             this.icon = new St.Icon({style_class: 'system-status-icon'});
-            this._update();
+            //this._update();
             box.add(this.icon);
-            //box.add(PopupMenu.arrowIcon(St.Side.BOTTOM));
-            this.actor.add_child(box);
+            this.add_child(box);
             /* Start Menu */
-            this.wireGuardSwitch = new PopupMenu.PopupSwitchMenuItem(
+            this.TunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
                 _('Wireguard status'),
                 {active: true});
-            this.wireGuardSwitch.label.set_text(_('Enable WireGuard'));
-            this.wireGuardSwitch.connect('toggled',
+            this.TunnelSwitch.label.set_text(_('Enable Tunnel'));
+            this.TunnelSwitch.connect('toggled',
                                          this._toggleSwitch.bind(this));
-            //this.wireGuardSwitch.connect('toggled', (widget, value) => {
+            //this.TunnelSwitch.connect('toggled', (widget, value) => {
             //    this._toggleSwitch(value);
             //});
-            this.menu.addMenuItem(this.wireGuardSwitch);
+            log("Antes");
+            this.tunnels_section = new PopupMenu.PopupMenuSection();
+            this.menu.addMenuItem(this.tunnels_section);
+            this.tunnels_section.addMenuItem(this.TunnelSwitch);
+            log("Después");
             /* Separator */
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             /* Setings */
@@ -100,87 +100,55 @@ var WireGuardIndicator = GObject.registerClass(
             /* Help */
             this.menu.addMenuItem(this._get_help());
             /* Init */
-            
-            this._update();
-            this._sourceId = GLib.timeout_add_seconds(
-                GLib.PRIORITY_DEFAULT, this._checktime,
-                this._update.bind(this));
-            this._settings.connect('changed', ()=>{
-                this._update();
-                GLib.source_remove(this._sourceId);
-                this._sourceId = GLib.timeout_add_seconds(
-                    GLib.PRIORITY_DEFAULT, this._checktime,
-                    this._update.bind(this));
-            });
+            this._sourceId = 0;
+            this._settingsChanged();
+            this._settings.connect('changed',
+                                   this._settingsChanged.bind(this));
         }
-        //_toggleSwitch(value){
-        _toggleSwitch(widget, value){
-            let setstatus = ((value == true) ? 'start': 'stop');
-            try {
-                let command = ['systemctl', setstatus, this._servicename];
-                let proc = Gio.Subprocess.new(
-                    command,
-                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                );
-                proc.communicate_utf8_async(null, null, (proc, res) => {
-                    try{
-                        let [, stdout, stderr] = proc.communicate_utf8_finish(res);
-                        this._update();
-                    }catch(e){
-                        logError(e);
-                    }
-                });
-            } catch (e) {
-                logError(e);
-            }
+        _getValue(keyName){
+            return this._settings.get_value(keyName).deep_unpack();
         }
-        _update(){
-            this._servicename = getValue('servicename');
-            this._checktime = getValue('checktime');
-            this._darkthem = getValue('darktheme')
 
-            try {
-                let command = ['systemctl', 'status', this._servicename];
-                let proc = Gio.Subprocess.new(
-                    command,
-                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                );
-                proc.communicate_utf8_async(null, null, (proc, res) => {
-                    try {
-                        let [, stdout, stderr] = proc.communicate_utf8_finish(res);
-                        let active = (stdout.indexOf('Active: active') > -1);
-                        this._set_icon_indicator(active);
-                    } catch (e) {
-                        logError(e);
-                    } finally {
-                        //loop.quit();
-                    }
-                });
-            } catch (e) {
-                logError(e);
-            }
+        _update(){
+            let all_on = false;
+            this._tunnelSwitches.forEach((tunnelSwitch, index, array)=>{
+                log(tunnelSwitch.label.get_text());
+                let command = 'pgrep -f "ssh ' + tunnelSwitch.label.get_text() + '"';
+                let [res, out, err, status] = GLib.spawn_command_line_sync(command);
+                log(command);
+                if(status == 0){
+                    all_on = true;
+                }
+                tunnelSwitch.setToggleState(status == 0);
+            });
+            log('Tunnel indicator: ' + all_on);
+            log(new Date().getTime());
+            this._set_icon_indicator(all_on);
             return true;
         }
+
         _set_icon_indicator(active){
-            let msg = '';
-            let status_string = '';
-            let darktheme = getValue('darktheme');
-            if(active){
-                msg = _('Disable WireGuard');
-                status_string = 'active';
-            }else{
-                msg = _('Enable WireGuard');
-                status_string = 'paused';
+            if(this.TunnelSwitch){
+                let msg = '';
+                let status_string = '';
+                let darktheme = this._getValue('darktheme');
+                if(active){
+                    msg = _('Disable Tunnel');
+                    status_string = 'active';
+                }else{
+                    msg = _('Enable Tunnel');
+                    status_string = 'paused';
+                }
+                GObject.signal_handlers_block_by_func(this.TunnelSwitch,
+                                                      this._toggleSwitch);
+                this.TunnelSwitch.setToggleState(active);
+                GObject.signal_handlers_unblock_by_func(this.TunnelSwitch,
+                                                        this._toggleSwitch);
+                this.TunnelSwitch.label.set_text(msg);
+                let theme_string = (darktheme?'dark': 'light');
+                let icon_string = 'tunnel-' + status_string + '-' + theme_string;
+                this.icon.set_gicon(this._get_icon(icon_string));
             }
-            GObject.signal_handlers_block_by_func(this.wireGuardSwitch,
-                                                  this._toggleSwitch);
-            this.wireGuardSwitch.setToggleState(active);
-            GObject.signal_handlers_unblock_by_func(this.wireGuardSwitch,
-                                                    this._toggleSwitch);
-            this.wireGuardSwitch.label.set_text(msg);
-            let theme_string = (darktheme?'dark': 'light');
-            let icon_string = 'wireguard-' + status_string + '-' + theme_string;
-            this.icon.set_gicon(this._get_icon(icon_string));
         }
         _get_icon(icon_name){
             let base_icon = Extension.path + '/icons/' + icon_name;
@@ -216,11 +184,11 @@ var WireGuardIndicator = GObject.registerClass(
         _get_help(){
             let menu_help = new PopupMenu.PopupSubMenuMenuItem(_('Help'));
             menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Project Page'), 'info', 'https://github.com/atareao/microphone-loopback'));
+                _('Project Page'), 'info', 'https://github.com/atareao/tunnel-indicator/'));
             menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Get help online...'), 'help', 'https://www.atareao.es/aplicacion/microphone-loopback/'));
+                _('Get help online...'), 'help', 'https://www.atareao.es/aplicacion/tunnel-indicator/'));
             menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Report a bug...'), 'bug', 'https://github.com/atareao/microphone-loopback/issues'));
+                _('Report a bug...'), 'bug', 'https://github.com/atareao/tunnel-indicator/issues'));
 
             menu_help.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             
@@ -240,25 +208,97 @@ var WireGuardIndicator = GObject.registerClass(
                 _('YouTube'), 'youtube', 'http://youtube.com/c/atareao'));
             return menu_help;
         }
-        destroy() {
-            this._settings.disconnect(this._settingsChanged);
-            super.destroy();
+        _toggleSwitch(widget, value){
+            let command = widget.label.get_text();
+            let command_check = 'pgrep -f "ssh ' + command +'"';
+            let [res, out, err, status] = GLib.spawn_command_line_sync(command_check);
+            if((status == 0) !== value){
+                let acommand = null;
+                if(value){
+                    acommand = ['ssh'].concat(command.split(' '));
+                }else{
+                    let pid = ByteArray.toString(out).split('\n')[0];
+                    acommand = ['kill', pid];
+                }
+                if (acommand != null){
+                    try{
+                        let proc = Gio.Subprocess.new(
+                            acommand,
+                            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                        );
+                        proc.communicate_utf8_async(null, null, (proc, res) => {
+                            try {
+                                let [, stdout, stderr] = proc.communicate_utf8_finish(res);
+                                log(stdout);
+                                //let active = (stdout.indexOf('Active: active') > -1);
+                                this._update();
+                            } catch (e) {
+                                logError(e);
+                            } finally {
+                                //loop.quit();
+                            }
+                        });
+                    } catch (e) {
+                        logError(e);
+                    }
+                }
+            }
+        }
+        _settingsChanged(){
+            this._checktime = this._getValue('checktime');
+            this._darkthem = this._getValue('darktheme')
+            this._tunnels = this._getValue('tunnels');
+            this._tunnelSwitches = [];
+            let all_on = false;
+            this.tunnels_section.actor.hide();
+            if(this.tunnels_section.numMenuItems > 0){
+                this.tunnels_section.removeAll();
+            }
+            for(let i=0;i<this._tunnels.length;i++){
+                let tunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
+                    _('Wireguard status'),
+                    {active: true});
+                tunnelSwitch.label.set_text(_(this._tunnels[i]));
+                tunnelSwitch.connect('toggled', this._toggleSwitch.bind(this));
+                /*
+                tunnelSwitch.connect('toggled',
+                                     (widget)=>{
+                                         log('Label: '+ widget.label.get_text());
+
+                                     });
+                */
+                this._tunnelSwitches.push(tunnelSwitch);
+                this.tunnels_section.addMenuItem(tunnelSwitch);
+            }
+            this.tunnels_section.actor.show();
+            log('Tunnel indicator: ' + all_on);
+            log(new Date().getTime());
+            this._set_icon_indicator(all_on);
+            this._update();
+            log('After update');
+            if(this._sourceId > 0){
+                GLib.source_remove(this._sourceId);
+            }
+            log('Check time:' + this._checktime);
+            this._sourceId = GLib.timeout_add_seconds(
+                GLib.PRIORITY_DEFAULT, this._checktime,
+                this._update.bind(this));
+            log('Source id:' + this._sourceId);
         }
     }
 );
 
-let wireGuardIndicator;
+let tunnelIndicator;
 
 function init(){
     Convenience.initTranslations();
-    var settings = Convenience.getSettings();
 }
 
 function enable(){
-    wireGuardIndicator = new WireGuardIndicator();
-    Main.panel.addToStatusArea('wireGuardIndicator', wireGuardIndicator, 0, 'right');
+    tunnelIndicator = new TunnelIndicator();
+    Main.panel.addToStatusArea('tunnelIndicator', tunnelIndicator, 0, 'right');
 }
 
 function disable() {
-    wireGuardIndicator.destroy();
+    tunnelIndicator.destroy();
 }

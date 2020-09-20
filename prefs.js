@@ -1,5 +1,5 @@
 /*
- * wireguard-indicator@atareao.es
+ * tunnel-indicator@atareao.es
  *
  * Copyright (c) 2020 Lorenzo Carbonell Cerezo <a.k.a. atareao>
  *
@@ -43,7 +43,7 @@ function init() {
 
 var AboutWidget = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.AboutWidget'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_AboutWidget'
     },
     class AboutWidget extends Gtk.Grid{
         _init(){
@@ -56,11 +56,11 @@ var AboutWidget = GObject.registerClass(
             });
 
             let aboutIcon = Gtk.Image.new_from_file(
-                this._get_icon_file('wireguard-icon'));
+                this._get_icon_file('tunnel-icon'));
             this.add(aboutIcon);
 
             let aboutName = new Gtk.Label({
-                label: "<b>" + _("WireGuard Indicator") + "</b>",
+                label: "<b>" + _("Tunnel Indicator") + "</b>",
                 use_markup: true
             });
             this.add(aboutName);
@@ -117,8 +117,8 @@ var AboutWidget = GObject.registerClass(
     }
 );
 
-var WireGuarIndicatorPreferencesWidget = GObject.registerClass(
-    class WireGuarIndicatorPreferencesWidget extends PreferencesWidget.Stack{
+var TunnelPreferencesWidget = GObject.registerClass(
+    class TunnelPreferencesWidget extends PreferencesWidget.Stack{
         _init(){
             super._init();
 
@@ -131,7 +131,7 @@ var WireGuarIndicatorPreferencesWidget = GObject.registerClass(
             var settings = Convenience.getSettings();
             
             let indicatorSection = preferencesPage.addSection(_("Indicator options"), null, {});
-            indicatorSection.addGSetting(settings, "servicename");
+            indicatorSection.addGSetting(settings, "tunnels");
             indicatorSection.addGSetting(settings, "checktime");
             let appearanceSection = preferencesPage.addSection(_("General options"), null, {});
             appearanceSection.addGSetting(settings, "darktheme");
@@ -149,12 +149,12 @@ var WireGuarIndicatorPreferencesWidget = GObject.registerClass(
 );
 
 function buildPrefsWidget() {
-    let preferencesWidget = new WireGuarIndicatorPreferencesWidget();
+    let preferencesWidget = new TunnelPreferencesWidget();
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, 0, () => {
         let prefsWindow = preferencesWidget.get_toplevel()
         prefsWindow.set_position(Gtk.WindowPosition.CENTER_ALWAYS);
         prefsWindow.get_titlebar().custom_title = preferencesWidget.switcher;
-        let icon = Extension.path + '/icons/wireguard-icon.svg';
+        let icon = Extension.path + '/icons/tunnel-icon.svg';
         log(icon);
         prefsWindow.set_icon_from_file(icon);
         return false;

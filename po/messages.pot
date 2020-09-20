@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-19 08:35+0200\n"
+"POT-Creation-Date: 2020-09-20 21:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,92 +17,96 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: schemas/wireguard-indicator.gschema.xml:6
-msgid "Service name"
+#: schemas/tunnel-indicator.gschema.xml:6
+msgid "List of tunnels definition"
 msgstr ""
 
-#: schemas/wireguard-indicator.gschema.xml:7
-msgid "Set the name of the systemd service"
+#: schemas/tunnel-indicator.gschema.xml:7
+msgid "Set the definition for everty tunnel"
 msgstr ""
 
-#: schemas/wireguard-indicator.gschema.xml:11
+#: schemas/tunnel-indicator.gschema.xml:11
 msgid "Check time"
 msgstr ""
 
-#: schemas/wireguard-indicator.gschema.xml:12
-msgid "Set the check time to test the WireGuard status"
+#: schemas/tunnel-indicator.gschema.xml:12
+msgid "Set the check time to test the ssh tunnel status"
 msgstr ""
 
-#: schemas/wireguard-indicator.gschema.xml:16
+#: schemas/tunnel-indicator.gschema.xml:16
 msgid "Dark theme"
 msgstr ""
 
-#: schemas/wireguard-indicator.gschema.xml:17
+#: schemas/tunnel-indicator.gschema.xml:17
 msgid "Enable dark theme otherwise light theme"
 msgstr ""
 
-#: extension_old.js:17
-msgid "Loading..."
-msgstr ""
-
-#: extension.js:83
+#: extension.js:79 extension.js:259
 msgid "Wireguard status"
 msgstr ""
 
-#: extension.js:85 extension.js:172
-msgid "Enable WireGuard"
+#: extension.js:81 extension.js:139
+msgid "Enable Tunnel"
 msgstr ""
 
 #: extension.js:95
 msgid "Settings"
 msgstr ""
 
-#: extension.js:169
-msgid "Disable WireGuard"
+#: extension.js:136
+msgid "Disable Tunnel"
 msgstr ""
 
-#: extension.js:217
+#: extension.js:185
 msgid "Help"
 msgstr ""
 
-#: extension.js:219
+#: extension.js:187
 msgid "Project Page"
 msgstr ""
 
-#: extension.js:221
+#: extension.js:189
 msgid "Get help online..."
 msgstr ""
 
-#: extension.js:223
+#: extension.js:191
 msgid "Report a bug..."
 msgstr ""
 
-#: extension.js:228
+#: extension.js:196
 msgid "El atareao"
 msgstr ""
 
-#: extension.js:230
+#: extension.js:198
 msgid "GitHub"
 msgstr ""
 
-#: extension.js:232
+#: extension.js:200
 msgid "Twitter"
 msgstr ""
 
-#: extension.js:234
+#: extension.js:202
 msgid "Telegram"
 msgstr ""
 
-#: extension.js:236
+#: extension.js:204
 msgid "Mastodon"
 msgstr ""
 
-#: extension.js:238
+#: extension.js:206
 msgid "Spotify"
 msgstr ""
 
-#: extension.js:240
+#: extension.js:208
 msgid "YouTube"
+msgstr ""
+
+#: dialogwidgets.js:27
+msgid "Cancel"
+msgstr ""
+
+#: dialogwidgets.js:28
+msgid "Ok"
 msgstr ""
 
 #: preferenceswidget.js:232
@@ -117,8 +121,16 @@ msgstr ""
 msgid "False"
 msgstr ""
 
+#: preferenceswidget.js:407
+msgid "Items"
+msgstr ""
+
+#: preferenceswidget.js:418
+msgid "ssh tunnel instruction"
+msgstr ""
+
 #: prefs.js:63
-msgid "WireGuard Indicator"
+msgid "Tunnel Indicator"
 msgstr ""
 
 #: prefs.js:68

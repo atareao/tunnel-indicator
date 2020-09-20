@@ -35,12 +35,13 @@ String.format = imports.format.format;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Extension = ExtensionUtils.getCurrentExtension();
 const Gettext = imports.gettext.domain(Extension.uuid);
+const DialogWidgets = Extension.imports.dialogwidgets;
 const _ = Gettext.gettext;
 
 
-let ColorSetting = GObject.registerClass(
+var ColorSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.ColorSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_ColorSetting'
     },
     class ColorSetting extends Gtk.Button{
         _init(settings, keyName, params={}) {
@@ -59,7 +60,6 @@ let ColorSetting = GObject.registerClass(
 
             this.drawingArea = new Gtk.DrawingArea();
             this.drawingArea.connect('draw', (widget, cr)=>{
-                log('DDDD'+this.background_color.green);
                 cr.setSourceRGBA(this.background_color.red,
                                  this.background_color.green,
                                  this.background_color.blue,
@@ -90,9 +90,9 @@ let ColorSetting = GObject.registerClass(
 );
 
 /** A Gtk.Switch subclass for boolean GSettings. */
-let BoolSetting = GObject.registerClass(
+var BoolSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.BoolSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_BoolSetting'
     },
     class BoolSetting extends Gtk.Switch{
         _init(settings, keyName) {
@@ -108,9 +108,9 @@ let BoolSetting = GObject.registerClass(
 );
 
 /** A Gtk.ComboBoxText subclass for GSetting choices and enumerations */
-let EnumSetting = GObject.registerClass(
+var EnumSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.EnumSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_EnumSetting'
     },
     class EnumSetting extends Gtk.ComboBoxText{
 
@@ -144,9 +144,9 @@ let EnumSetting = GObject.registerClass(
 );
 
 /** A Gtk.MenuButton subclass for GSetting flags */
-let FlagsSetting = GObject.registerClass(
+var FlagsSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.FlagsSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_FlagsSetting'
     },
     class FlagsSetting extends Gtk.MenuButton{
         _init(settings, keyName, params={}) {
@@ -203,9 +203,9 @@ let FlagsSetting = GObject.registerClass(
 );
 
 /** A Gtk.Button/Popover subclass for GSetting nullable booleans (maybe) */
-let MaybeSetting = GObject.registerClass(
+var MaybeSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.MaybeSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_MaybeSetting'
     },
     class MaybeSetting extends Gtk.Button{
 
@@ -286,9 +286,9 @@ let MaybeSetting = GObject.registerClass(
 );
 
 /** A Gtk.SpinButton subclass for unranged integer GSettings */
-let NumberSetting = GObject.registerClass(
+var NumberSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.NumberSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_NumberSetting'
     },
     class NumberSetting extends Gtk.SpinButton{
 
@@ -346,9 +346,9 @@ let NumberSetting = GObject.registerClass(
 );
 
 /** A Gtk.Scale subclass for ranged integer GSettings */
-let RangeSetting = GObject.registerClass(
+var RangeSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.RangeSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_RangeSetting'
     },
     class RangeSetting extends Gtk.Scale{
 
@@ -383,10 +383,89 @@ let RangeSetting = GObject.registerClass(
     }
 );
 
-/** A Gtk.Entry subclass for string GSettings */
-let StringSetting = GObject.registerClass(
+var ArrayStringSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.StringSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_ArrayStringSetting'
+    },
+    class ArrayStringSetting extends Gtk.Grid{
+        _init(settings, keyName){
+            super._init({
+                can_focus: true,
+                visible: true
+            });
+            this._keyName = keyName;
+            this._settings = settings;
+            let model = new Gtk.ListStore();
+            model.set_column_types([GObject.TYPE_STRING]);
+            let tunnels = settings.get_strv(keyName);
+            for(let i=0; i < tunnels.length; i++){
+                model.set(model.append(), [0], [tunnels[i]]);
+            }
+            this._tunnels = new Gtk.TreeView({
+                expand: true,
+                model: model});
+            let col = new Gtk.TreeViewColumn({title: _('Items')});
+            let cell = new Gtk.CellRendererText();
+            col.pack_start(cell, true);
+            col.add_attribute(cell, "text", 0);
+            this._tunnels.insert_column(col, 0);
+            this.attach(this._tunnels, 0, 0, 1, 1);
+            let buttons_box = Gtk.Grid.new();
+            let button_add = Gtk.Button.new_from_icon_name(
+                'list-add-symbolic', Gtk.IconSize.BUTTON);
+            button_add.connect('clicked', () =>{
+                let dialog = new DialogWidgets.EntryDialog(_(
+                    'ssh tunnel instruction'));
+                if (dialog.run() == Gtk.ResponseType.OK){
+                    let new_value = dialog.getEntry();
+                    if(!this.get_values().includes(new_value)){
+                        model.set(model.append(), [0], [new_value]);
+                    }
+                }
+                dialog.hide();
+                dialog.destroy();
+            });
+            buttons_box.attach(button_add, 0, 0, 1, 1);
+            let button_remove = Gtk.Button.new_from_icon_name(
+                'list-remove-symbolic', Gtk.IconSize.BUTTON);
+            button_remove.connect('clicked', () => {
+                let [isselected, liststore, iter] = this._tunnels.get_selection().get_selected();
+                if(isselected === true){
+                    liststore.remove(iter);
+                }
+            });
+            buttons_box.attach(button_remove, 0, 1, 1, 1);
+            this.attach(buttons_box, 1, 0, 1, 1);
+
+            model.connect('row-changed', this._on_model_changed.bind(this));
+            model.connect('row-deleted', this._on_model_changed.bind(this));
+            model.connect('row-inserted', this._on_model_changed.bind(this));
+        }
+        get_values(){
+            let values = [];
+            let model = this._tunnels.get_model();
+            let [exists, iter] = model.get_iter_first();
+            while(exists){
+                let new_value = model.get_value(iter, 0);
+                if(new_value != null && new_value != ''){
+                    values.push(new_value);
+                }
+                exists = model.iter_next(iter);
+            }
+            return values;
+        }
+
+        _on_model_changed(){
+            this._settings.set_strv(this._keyName, this.get_values());
+        }
+    }
+);
+
+
+/** A Gtk.Entry subclass for string GSettings */
+var StringSetting = GObject.registerClass(
+    {
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_StringSetting'
     },
     class StringSetting extends Gtk.Entry{
 
@@ -435,9 +514,9 @@ let StringSetting = GObject.registerClass(
 );
 
 /** A Gtk.FileChooserButton subclass for folder GSettings */
-let FolderSetting = GObject.registerClass(
+var FolderSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.FolderSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_FolderSetting'
     },
     class FolderSetting extends Gtk.FileChooserButton{
 
@@ -459,9 +538,9 @@ let FolderSetting = GObject.registerClass(
 );
 
 /** A Gtk.Entry subclass for all other GSettings */
-let OtherSetting = GObject.registerClass(
+var OtherSetting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.OtherSetting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_OtherSetting'
     },
     class OtherSetting extends Gtk.Entry{
 
@@ -506,9 +585,9 @@ let OtherSetting = GObject.registerClass(
 /**
  * Convenience classes for widgets similar to Gnome Control Center
  */
-let Row = GObject.registerClass(
+var Row = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.Row'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_Row'
     },
     class Row extends Gtk.ListBoxRow{
 
@@ -546,9 +625,9 @@ let Row = GObject.registerClass(
     }
 );
 
-let Setting = GObject.registerClass(
+var Setting = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.Setting'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_Setting'
     },
     class Setting extends Row{
 
@@ -583,9 +662,9 @@ let Setting = GObject.registerClass(
     }
 );
 
-let Section = GObject.registerClass(
+var Section = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.Section'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_Section'
     },
     class Section extends Gtk.Frame{
         _init(params={}){
@@ -662,6 +741,8 @@ let Section = GObject.registerClass(
 
             if (widget !== undefined) {
                 widget = new widget(settings, keyName);
+            } else if (type === "as") {
+                widget = new ArrayStringSetting(settings, keyName);
             } else if (type === "b") {
                 widget = new BoolSetting(settings, keyName);
             } else if (type === "enum") {
@@ -691,9 +772,9 @@ let Section = GObject.registerClass(
 
 
 /** A composite widget resembling A Gnome Control Center panel. */
-let Page = GObject.registerClass(
+var Page = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.Page'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_Page'
     },
     class Page extends Gtk.ScrolledWindow{
         _init(params={}){
@@ -747,9 +828,9 @@ let Page = GObject.registerClass(
 
 
 /** A GtkStack subclass with a pre-attached GtkStackSwitcher */
-let Stack = GObject.registerClass(
+var Stack = GObject.registerClass(
     {
-        GTypeName: Extension.uuid + '.Stack'
+        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_Stack'
     },
     class Stack extends Gtk.Stack{
         _init(params={}){
