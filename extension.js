@@ -32,7 +32,6 @@ imports.gi.versions.GLib = "2.0";
 
 const {Gtk, Gdk, Gio, Clutter, St, GObject, GLib} = imports.gi;
 
-const MessageTray = imports.ui.messageTray;
 const ByteArray = imports.byteArray;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
@@ -44,16 +43,6 @@ const Convenience = Extension.imports.convenience;
 
 const Gettext = imports.gettext.domain(Extension.uuid);
 const _ = Gettext.gettext;
-
-var button;
-
-function notify(msg, details, icon='tasker') {
-    let source = new MessageTray.Source(Extension.uuid, icon);
-    Main.messageTray.add(source);
-    let notification = new MessageTray.Notification(source, msg, details);
-    notification.setTransient(true);
-    source.notify(notification);
-}
 
 var TunnelIndicator = GObject.registerClass(
     class TunnelIndicator extends PanelMenu.Button{
@@ -69,10 +58,6 @@ var TunnelIndicator = GObject.registerClass(
             }
 
             let box = new St.BoxLayout();
-            let label = new St.Label({text: 'Button',
-                                      y_expand: true,
-                                      y_align: Clutter.ActorAlign.CENTER });
-            //box.add(label);
             this.icon = new St.Icon({style_class: 'system-status-icon'});
             //this._update();
             box.add(this.icon);
@@ -237,13 +222,6 @@ var TunnelIndicator = GObject.registerClass(
                     {active: true});
                 tunnelSwitch.label.set_text(_(this._tunnels[i]));
                 tunnelSwitch.connect('toggled', this._toggleSwitch.bind(this));
-                /*
-                tunnelSwitch.connect('toggled',
-                                     (widget)=>{
-                                         log('Label: '+ widget.label.get_text());
-
-                                     });
-                */
                 this._tunnelSwitches.push(tunnelSwitch);
                 this.tunnels_section.addMenuItem(tunnelSwitch);
             }
