@@ -62,8 +62,11 @@ var TunnelIndicator = GObject.registerClass(
             this._settings = Convenience.getSettings();
 
             /* Icon indicator */
-            Gtk.IconTheme.get_default().append_search_path(
-                Extension.dir.get_child('icons').get_path());
+            let defaultIconTheme = Gtk.IconTheme.get_default();
+            if (defaultIconTheme) {
+                defaultIconTheme.append_search_path(
+                    Extension.dir.get_child('icons').get_path());
+            }
 
             let box = new St.BoxLayout();
             let label = new St.Label({text: 'Button',
@@ -75,19 +78,9 @@ var TunnelIndicator = GObject.registerClass(
             box.add(this.icon);
             this.add_child(box);
             /* Start Menu */
-            this.TunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
-                _('Wireguard status'),
-                {active: true});
-            this.TunnelSwitch.label.set_text(_('Enable Tunnel'));
-            this.TunnelSwitch.connect('toggled',
-                                         this._toggleSwitch.bind(this));
-            //this.TunnelSwitch.connect('toggled', (widget, value) => {
-            //    this._toggleSwitch(value);
-            //});
             log("Antes");
             this.tunnels_section = new PopupMenu.PopupMenuSection();
             this.menu.addMenuItem(this.tunnels_section);
-            this.tunnels_section.addMenuItem(this.TunnelSwitch);
             log("Después");
             /* Separator */
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -128,27 +121,11 @@ var TunnelIndicator = GObject.registerClass(
         }
 
         _set_icon_indicator(active){
-            if(this.TunnelSwitch){
-                let msg = '';
-                let status_string = '';
-                let darktheme = this._getValue('darktheme');
-                if(active){
-                    msg = _('Disable Tunnel');
-                    status_string = 'active';
-                }else{
-                    msg = _('Enable Tunnel');
-                    status_string = 'paused';
-                }
-                GObject.signal_handlers_block_by_func(this.TunnelSwitch,
-                                                      this._toggleSwitch);
-                this.TunnelSwitch.setToggleState(active);
-                GObject.signal_handlers_unblock_by_func(this.TunnelSwitch,
-                                                        this._toggleSwitch);
-                this.TunnelSwitch.label.set_text(msg);
-                let theme_string = (darktheme?'dark': 'light');
-                let icon_string = 'tunnel-' + status_string + '-' + theme_string;
-                this.icon.set_gicon(this._get_icon(icon_string));
-            }
+            let darktheme = this._getValue('darktheme');
+            let status_string = active ? 'active' : 'paused';
+            let theme_string = (darktheme?'dark': 'light');
+            let icon_string = 'tunnel-' + status_string + '-' + theme_string;
+            this.icon.set_gicon(this._get_icon(icon_string));
         }
         _get_icon(icon_name){
             let base_icon = Extension.path + '/icons/' + icon_name;
@@ -300,5 +277,8 @@ function enable(){
 }
 
 function disable() {
+    if(tunnelIndicator._sourceId > 0){
+        GLib.source_remove(tunnelIndicator._sourceId);
+    }
     tunnelIndicator.destroy();
 }
