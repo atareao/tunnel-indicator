@@ -38,7 +38,7 @@ function init() {
 }
 
 var TunnelPreferencesWidget = GObject.registerClass(
-    class TunnelPreferencesWidget extends PreferencesWidget.Stack{
+    class TunnelPreferencesWidget extends Widgets.ListWithStack{
         _init(){
             super._init();
 
