@@ -139,7 +139,8 @@ var TunnelIndicator = GObject.registerClass(
         _toggleSwitch(widget, value){
             try {
                 let setstatus = ((value == true) ? 'start': 'stop');
-                let command = 'pgrep -f "ssh ' + tunnelSwitch.label.get_name() + '"';
+                let tunnel = tunnelSwitch.label.get_name();
+                let command = ["pgrep", "-f", `"ssh ${tunnel}"`];
                 let proc = Gio.Subprocess.new(
                     command,
                     Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
@@ -147,6 +148,10 @@ var TunnelIndicator = GObject.registerClass(
                 proc.communicate_utf8_async(null, null, (proc, res) => {
                     try{
                         let [, stdout, stderr] = proc.communicate_utf8_finish(res);
+                        log("=====================");
+                        log(stdout);
+                        log(stderr);
+                        log("=====================");
                         this._update();
                     }catch(e){
                         logError(e);
@@ -162,21 +167,23 @@ var TunnelIndicator = GObject.registerClass(
 
         _update(){
             this._tunnelsSwitches.forEach((tunnelSwitch, index, array)=>{
-                let tunnel = tunnelSwitch.label.name;
                 try{
-                    let command = 'pgrep -f "ssh ' + tunnel + '"';
+                    let tunnel = tunnelSwitch.label.name;
+                    log(tunnel);
+                    let command = ["pgrep", "-f", `"ssh ${tunnel}"`];
                     let proc = Gio.Subprocess.new(
                         command,
                         Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
                     );
                     proc.communicate_utf8_async(null, null, (proc, res) => {
                         try {
+                            log(res);
                             let [, stdout, stderr] = proc.communicate_utf8_finish(res);
                             let active = (stdout.indexOf('Active: active') > -1);
-                            GObject.signal_handlers_block_by_func(serviceSwitch,
+                            GObject.signal_handlers_block_by_func(tunnelSwitch,
                                                           this._toggleSwitch);
                             tunnelSwitch.setToggleState(active);
-                            GObject.signal_handlers_unblock_by_func(serviceSwitch,
+                            GObject.signal_handlers_unblock_by_func(tunnelSwitch,
                                                             this._toggleSwitch);
                             this._checkStatus();
                         } catch (e) {
