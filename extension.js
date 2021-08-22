@@ -75,7 +75,7 @@ var TunnelIndicator = GObject.registerClass(
             this.add_child(box);
             /* Start Menu */
             this.TunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
-                _('Wireguard status'),
+                _('Tunnels status'),
                 {active: true});
 
             this.tunnels_section = new PopupMenu.PopupMenuSection();

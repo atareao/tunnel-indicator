@@ -2,7 +2,7 @@
 <schemalist gettext-domain="tunnel-indicator@atareao.es">
     <schema path="/es/atareao/tunnel-indicator/" id="es.atareao.tunnel-indicator">
         <key name="tunnels" type="as" >
-            <default>["tunnel1", "tunnel2"]</default>
+            <default>["tunnel1|command1", "tunnel2|command2"]</default>
             <summary>List of tunnels definition</summary>
             <description>Set the definition for everty tunnel</description>
         </key>

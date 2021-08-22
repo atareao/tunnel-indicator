@@ -523,7 +523,7 @@ var ArrayStringSetting = GObject.registerClass(
             col1.add_attribute(cell1, "text", 0);
             this._tunnels.insert_column(col1, 0);
 
-            let col2 = new Gtk.TreeViewColumn({title: _('Service')});
+            let col2 = new Gtk.TreeViewColumn({title: _('Tunnel')});
             let cell2 = new Gtk.CellRendererText();
             col2.pack_start(cell2, true);
             col2.add_attribute(cell2, "text", 1);
@@ -535,7 +535,7 @@ var ArrayStringSetting = GObject.registerClass(
                 'list-add-symbolic');
             button_add.connect('clicked', () =>{
                 let dialog = new DialogWidgets.KeyValueDialog(_(
-                    'Name'), _('Service'));
+                    'Name'), _('Tunnel'));
                 if (dialog.run() == Gtk.ResponseType.OK){
                     let new_name = dialog.getKey();
                     let new_service = dialog.getValue();
@@ -565,7 +565,7 @@ var ArrayStringSetting = GObject.registerClass(
                 if(isselected === true){
                     let name = liststore.get_value(iter, 0);
                     let service = liststore.get_value(iter, 1);
-                    let dialog = new DialogWidgets.EntryDialog(_('Name'), _('Service'));
+                    let dialog = new DialogWidgets.EntryDialog(_('Name'), _('Tunnel'));
                     dialog.setEntry1(name);
                     dialog.setEntry2(service);
                     if(dialog.run() == Gtk.ResponseType.OK){
