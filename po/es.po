@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WireGuard Indicator - 1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-20 21:23+0200\n"
+"POT-Creation-Date: 2021-08-22 08:23+0200\n"
 "PO-Revision-Date: 2020-09-15 19:23+0200\n"
 "Last-Translator: Lorenzo <atareao@atareao.es>\n"
 "Language-Team: Spanish\n"
@@ -25,7 +25,7 @@ msgstr "Lista de definición de túneles"
 msgid "Set the definition for everty tunnel"
 msgstr "Establece la definición de cada túnel"
 
-#: schemas/tunnel-indicator.gschema.xml:11
+#: schemas/tunnel-indicator.gschema.xml:11 prefs.js:85 prefs.js:96
 msgid "Check time"
 msgstr "Intervalo de comprobación"
 
@@ -41,158 +41,144 @@ msgstr "Tema oscuro"
 msgid "Enable dark theme otherwise light theme"
 msgstr "Establece el tema oscuro"
 
-#: extension.js:79 extension.js:259
-msgid "Wireguard status"
-msgstr "Estado de Wireguard"
+#: extension.js:78
+msgid "Tunnels status"
+msgstr "Estado de los túneles"
 
-#: extension.js:81 extension.js:139
-msgid "Enable Tunnel"
-msgstr "Habilita el túnel"
-
-#: extension.js:95
+#: extension.js:87
 msgid "Settings"
 msgstr "Configuración"
 
-#: extension.js:136
-msgid "Disable Tunnel"
-msgstr "Inhabilita el túnel"
-
-#: extension.js:185
-msgid "Help"
-msgstr "Ayuda"
-
-#: extension.js:187
-msgid "Project Page"
-msgstr "Página del proyecto"
-
-#: extension.js:189
-msgid "Get help online..."
-msgstr "Consigue ayuda en línea..."
-
-#: extension.js:191
-msgid "Report a bug..."
-msgstr "Informa de un error..."
-
-#: extension.js:196
-msgid "El atareao"
-msgstr "El atareao"
-
-#: extension.js:198
-msgid "GitHub"
-msgstr "GitHub"
-
-#: extension.js:200
-msgid "Twitter"
-msgstr "Twitter"
-
-#: extension.js:202
-msgid "Telegram"
-msgstr "Telegram"
-
-#: extension.js:204
-msgid "Mastodon"
-msgstr "Mastodon"
-
-#: extension.js:206
-msgid "Spotify"
-msgstr "Spotify"
-
-#: extension.js:208
-msgid "YouTube"
-msgstr "YouTube"
-
-#: dialogwidgets.js:27
+#: dialogwidgets.js:52
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: dialogwidgets.js:28
+#: dialogwidgets.js:53
 msgid "Ok"
-msgstr "Ok"
+msgstr "Aceptar"
 
-#: preferenceswidget.js:232
+#: aboutpage.js:47
+msgid "Buy me a coffee"
+msgstr "Apoya con un café"
+
+#: aboutpage.js:52
+msgid "Version"
+msgstr "Versión"
+
+#: aboutpage.js:54
+msgid "GNOME Version"
+msgstr "Versión de GNOME"
+
+#: aboutpage.js:56
+msgid "OS"
+msgstr "OS"
+
+#: aboutpage.js:57
+msgid "SessionType"
+msgstr "Sesión"
+
+#: aboutpage.js:89
+msgid "Developers"
+msgstr "Desarrolladores"
+
+#: aboutpage.js:96
+msgid "Contributors"
+msgstr "Contribuidores"
+
+#: aboutpage.js:97
+msgid "Thank you to all contributors!"
+msgstr "Gracias a todos los contribuidores!"
+
+#: aboutpage.js:98
+msgid "For a list of all contributors, please visit"
+msgstr "La lista de distribuidores la puedes encontrar en"
+
+#: aboutpage.js:107
+msgid "Supporters"
+msgstr "Colaboradores"
+
+#: aboutpage.js:108
+msgid "Thank you to all supporters!"
+msgstr "Gracias a todos los colaboradores!"
+
+#: aboutpage.js:109
+msgid "For a list of all supporters, please visit"
+msgstr "La lita de colaboradores la puedes encontrar en"
+
+#: aboutpage.js:116
+msgid "License"
+msgstr "Licencia"
+
+#: aboutpage.js:129
+msgid "More info"
+msgstr "Mas información"
+
+#: aboutpage.js:139
+msgid "More information"
+msgstr "Mas información"
+
+#: aboutpage.js:142
+msgid "Report an issue"
+msgstr "Informa de un error..."
+
+#: prefs.js:49 preferenceswidget.js:520 preferenceswidget.js:538
+#: preferenceswidget.js:568
+msgid "Name"
+msgstr "Nombre"
+
+#: prefs.js:50 preferenceswidget.js:526 preferenceswidget.js:538
+#: preferenceswidget.js:568
+msgid "Tunnel"
+msgstr "Túnel"
+
+#: prefs.js:54
+msgid "Tunnels"
+msgstr "Túneles"
+
+#: prefs.js:69
+msgid "Add"
+msgstr "Añadir"
+
+#: prefs.js:82
+msgid "Add more tunnels"
+msgstr "Añadir mas túneles"
+
+#: prefs.js:91
+msgid "Theme"
+msgstr "Tema"
+
+#: prefs.js:94
+msgid "Tunnels Preferences"
+msgstr "Preferencias de túneles"
+
+#: prefs.js:97
+msgid "Style"
+msgstr "Estilo"
+
+#: prefs.js:98
+msgid "About"
+msgstr "Acerca de"
+
+#: prefs.js:107
+msgid "Tunnel Indicator Configuration"
+msgstr "Configuración del indicador de túneles"
+
+#: preferenceswidget.js:253
 msgid "Nothing"
 msgstr "Nada"
 
-#: preferenceswidget.js:245
+#: preferenceswidget.js:266
 msgid "True"
 msgstr "Cierto"
 
-#: preferenceswidget.js:258
+#: preferenceswidget.js:279
 msgid "False"
 msgstr "Falso"
 
-#: preferenceswidget.js:407
-msgid "Items"
-msgstr "Elementos"
+#: preferenceswidget.js:473 preferenceswidget.js:1015
+msgid "Edit"
+msgstr "Editar"
 
-#: preferenceswidget.js:418
-msgid "ssh tunnel instruction"
-msgstr "Instrucción para el túnel ssh"
-
-#: prefs.js:63
-msgid "Tunnel Indicator"
-msgstr "Indicador de túneles ssh"
-
-#: prefs.js:68
-msgid "Version: "
-msgstr "Versión: "
-
-#: prefs.js:79
-msgid "Atareao"
-msgstr "Atareao"
-
-#: prefs.js:86
-msgid "Copyright © 2020 Lorenzo Carbonell"
-msgstr "Copyright © 2020 Lorenzo Carbonell"
-
-#: prefs.js:93
-msgid ""
-"THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS "
-"OR\n"
-msgstr ""
-
-#: prefs.js:94
-msgid ""
-"IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n"
-msgstr ""
-
-#: prefs.js:95
-msgid ""
-"FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n"
-msgstr ""
-
-#: prefs.js:96
-msgid ""
-"AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n"
-msgstr ""
-
-#: prefs.js:97
-msgid ""
-"LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\n"
-msgstr ""
-
-#: prefs.js:98
-msgid ""
-"FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER "
-"DEALINGS\n"
-msgstr ""
-
-#: prefs.js:99
-msgid "IN THE SOFTWARE.\n"
-msgstr ""
-
-#: prefs.js:129
-msgid "Preferences"
-msgstr "Preferencias"
-
-#: prefs.js:133
-msgid "Indicator options"
-msgstr "Opciones del indicador"
-
-#: prefs.js:136
-msgid "General options"
-msgstr "Opciones generales"
-
-#: prefs.js:142
-msgid "About"
-msgstr "Acerca de"
+#: preferenceswidget.js:1025
+msgid "Remove"
+msgstr "Eliminar"

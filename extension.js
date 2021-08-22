@@ -45,24 +45,23 @@ const Convenience = Extension.imports.convenience;
 const Gettext = imports.gettext.domain(Extension.uuid);
 const _ = Gettext.gettext;
 
-var button;
-
-function notify(msg, details, icon='tasker') {
-    let source = new MessageTray.Source(Extension.uuid, icon);
-    Main.messageTray.add(source);
-    let notification = new MessageTray.Notification(source, msg, details);
-    notification.setTransient(true);
-    source.notify(notification);
-}
 
 var TunnelIndicator = GObject.registerClass(
     class TunnelIndicator extends PanelMenu.Button{
         _init(){
             super._init(St.Align.START);
             this._settings = Convenience.getSettings();
+            this._isActive = null;
 
             /* Icon indicator */
-            Gtk.IconTheme.get_default().append_search_path(
+            let theme = Gtk.IconTheme.get_default();
+            if (theme == null) {
+                // Workaround due to lazy initialization on wayland
+                // as proposed by @fmuellner in GNOME mutter issue #960
+                theme = new Gtk.IconTheme();
+                theme.set_custom_theme(St.Settings.get().gtk_icon_theme);
+            }
+            theme.append_search_path(
                 Extension.dir.get_child('icons').get_path());
 
             let box = new St.BoxLayout();
@@ -76,19 +75,12 @@ var TunnelIndicator = GObject.registerClass(
             this.add_child(box);
             /* Start Menu */
             this.TunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
-                _('Wireguard status'),
+                _('Tunnels status'),
                 {active: true});
-            this.TunnelSwitch.label.set_text(_('Enable Tunnel'));
-            this.TunnelSwitch.connect('toggled',
-                                         this._toggleSwitch.bind(this));
-            //this.TunnelSwitch.connect('toggled', (widget, value) => {
-            //    this._toggleSwitch(value);
-            //});
-            log("Antes");
+
             this.tunnels_section = new PopupMenu.PopupMenuSection();
             this.menu.addMenuItem(this.tunnels_section);
             this.tunnels_section.addMenuItem(this.TunnelSwitch);
-            log("Después");
             /* Separator */
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             /* Setings */
@@ -97,59 +89,122 @@ var TunnelIndicator = GObject.registerClass(
                 ExtensionUtils.openPrefs();
             });
             this.menu.addMenuItem(this.settingsMenuItem);
-            /* Help */
-            this.menu.addMenuItem(this._get_help());
             /* Init */
             this._sourceId = 0;
             this._settingsChanged();
             this._settings.connect('changed',
                                    this._settingsChanged.bind(this));
         }
+
+        _loadConfiguration(){
+            this._tunnels = this._getValue('tunnels');
+            this._checktime = this._getValue('checktime');
+            if(this._checktime < 5){
+                this._checktime = 5;
+            }else if (this._checktime > 600){
+                this._checktime = 600;
+            }
+            this._darkthem = this._getValue('darktheme')
+            this._tunnelsSwitches = [];
+            this.tunnels_section.actor.hide();
+            if(this.tunnels_section.numMenuItems > 0){
+                this.tunnels_section.removeAll();
+            }
+            this._tunnels.forEach((item, index, array)=>{
+                let [name, tunnel] = item.split('|');
+                let tunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
+                    name,
+                    {active: false});
+                tunnelSwitch.label.set_name(tunnel);
+                tunnelSwitch.connect('toggled', this._toggleSwitch.bind(this)); 
+                this._tunnelsSwitches.push(tunnelSwitch);
+                this.tunnels_section.addMenuItem(tunnelSwitch);
+                this.tunnels_section.actor.show();
+            });
+        }
+
+        _checkStatus(){
+            let isActive = false;
+            this._tunnelsSwitches.forEach((tunnelSwitch)=>{
+                if(tunnelSwitch.state){
+                    isActive = true;
+                }
+            });
+            if(this._isActive == null || this._isActive != isActive){
+                this._isActive = isActive;
+                this._set_icon_indicator(this._isActive);
+            }
+        }
+
+        _toggleSwitch(widget, value){
+            try {
+                let setstatus = ((value == true) ? 'start': 'stop');
+                let tunnel = tunnelSwitch.label.get_name();
+                let command = ["pgrep", "-f", `"ssh ${tunnel}"`];
+                let proc = Gio.Subprocess.new(
+                    command,
+                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                );
+                proc.communicate_utf8_async(null, null, (proc, res) => {
+                    try{
+                        let [, stdout, stderr] = proc.communicate_utf8_finish(res);
+                        log("=====================");
+                        log(stdout);
+                        log(stderr);
+                        log("=====================");
+                        this._update();
+                    }catch(e){
+                        logError(e);
+                    }
+                });
+            } catch (e) {
+                logError(e);
+            }
+        }
         _getValue(keyName){
             return this._settings.get_value(keyName).deep_unpack();
         }
 
         _update(){
-            let all_on = false;
-            this._tunnelSwitches.forEach((tunnelSwitch, index, array)=>{
-                log(tunnelSwitch.label.get_text());
-                let command = 'pgrep -f "ssh ' + tunnelSwitch.label.get_text() + '"';
-                let [res, out, err, status] = GLib.spawn_command_line_sync(command);
-                log(command);
-                if(status == 0){
-                    all_on = true;
+            this._tunnelsSwitches.forEach((tunnelSwitch, index, array)=>{
+                try{
+                    let tunnel = tunnelSwitch.label.name;
+                    log(tunnel);
+                    let command = ["pgrep", "-f", `"ssh ${tunnel}"`];
+                    let proc = Gio.Subprocess.new(
+                        command,
+                        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                    );
+                    proc.communicate_utf8_async(null, null, (proc, res) => {
+                        try {
+                            log(res);
+                            let [, stdout, stderr] = proc.communicate_utf8_finish(res);
+                            let active = (stdout.indexOf('Active: active') > -1);
+                            GObject.signal_handlers_block_by_func(tunnelSwitch,
+                                                          this._toggleSwitch);
+                            tunnelSwitch.setToggleState(active);
+                            GObject.signal_handlers_unblock_by_func(tunnelSwitch,
+                                                            this._toggleSwitch);
+                            this._checkStatus();
+                        } catch (e) {
+                            logError(e);
+                        }
+                    });
+                } catch (e) {
+                    logError(e);
                 }
-                tunnelSwitch.setToggleState(status == 0);
             });
-            log('Tunnel indicator: ' + all_on);
-            log(new Date().getTime());
-            this._set_icon_indicator(all_on);
             return true;
         }
 
         _set_icon_indicator(active){
-            if(this.TunnelSwitch){
-                let msg = '';
-                let status_string = '';
-                let darktheme = this._getValue('darktheme');
-                if(active){
-                    msg = _('Disable Tunnel');
-                    status_string = 'active';
-                }else{
-                    msg = _('Enable Tunnel');
-                    status_string = 'paused';
-                }
-                GObject.signal_handlers_block_by_func(this.TunnelSwitch,
-                                                      this._toggleSwitch);
-                this.TunnelSwitch.setToggleState(active);
-                GObject.signal_handlers_unblock_by_func(this.TunnelSwitch,
-                                                        this._toggleSwitch);
-                this.TunnelSwitch.label.set_text(msg);
-                let theme_string = (darktheme?'dark': 'light');
-                let icon_string = 'tunnel-' + status_string + '-' + theme_string;
-                this.icon.set_gicon(this._get_icon(icon_string));
-            }
+            let darktheme = this._getValue('darktheme');
+            let theme_string = (darktheme?'dark': 'light');
+            let status_string = (active?'active':'paused')
+            let icon_string = 'tunnel-' + status_string + '-' + theme_string;
+            this.icon.set_gicon(this._get_icon(icon_string));
         }
+
         _get_icon(icon_name){
             let base_icon = Extension.path + '/icons/' + icon_name;
             let file_icon = Gio.File.new_for_path(base_icon + '.png')
@@ -163,127 +218,21 @@ var TunnelIndicator = GObject.registerClass(
             return icon;
         }
 
-        _create_help_menu_item(text, icon_name, url){
-            let icon = this._get_icon(icon_name);
-            let menu_item = new PopupMenu.PopupImageMenuItem(text, icon);
-            menu_item.connect('activate', () => {
-                Gio.app_info_launch_default_for_uri(url, null);
-            });
-            return menu_item;
-        }
-        _createActionButton(iconName, accessibleName){
-            let icon = new St.Button({ reactive:true,
-                                       can_focus: true,
-                                       track_hover: true,
-                                       accessible_name: accessibleName,
-                                       style_class: 'system-menu-action'});
-            icon.child = new St.Icon({icon_name: iconName });
-            return icon;
-        }
-
-        _get_help(){
-            let menu_help = new PopupMenu.PopupSubMenuMenuItem(_('Help'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Project Page'), 'info', 'https://github.com/atareao/tunnel-indicator/'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Get help online...'), 'help', 'https://www.atareao.es/aplicacion/tunnel-indicator/'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Report a bug...'), 'bug', 'https://github.com/atareao/tunnel-indicator/issues'));
-
-            menu_help.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('El atareao'), 'atareao', 'https://www.atareao.es'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('GitHub'), 'github', 'https://github.com/atareao'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Twitter'), 'twitter', 'https://twitter.com/atareao'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Telegram'), 'telegram', 'https://t.me/canal_atareao'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Mastodon'), 'mastodon', 'https://mastodon.social/@atareao'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('Spotify'), 'spotify', 'https://open.spotify.com/show/2v0fC8PyeeUTQDD67I0mKW'));
-            menu_help.menu.addMenuItem(this._create_help_menu_item(
-                _('YouTube'), 'youtube', 'http://youtube.com/c/atareao'));
-            return menu_help;
-        }
-        _toggleSwitch(widget, value){
-            let command = widget.label.get_text();
-            let command_check = 'pgrep -f "ssh ' + command +'"';
-            let [res, out, err, status] = GLib.spawn_command_line_sync(command_check);
-            if((status == 0) !== value){
-                let acommand = null;
-                if(value){
-                    acommand = ['ssh'].concat(command.split(' '));
-                }else{
-                    let pid = ByteArray.toString(out).split('\n')[0];
-                    acommand = ['kill', pid];
-                }
-                if (acommand != null){
-                    try{
-                        let proc = Gio.Subprocess.new(
-                            acommand,
-                            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                        );
-                        proc.communicate_utf8_async(null, null, (proc, res) => {
-                            try {
-                                let [, stdout, stderr] = proc.communicate_utf8_finish(res);
-                                log(stdout);
-                                //let active = (stdout.indexOf('Active: active') > -1);
-                                this._update();
-                            } catch (e) {
-                                logError(e);
-                            } finally {
-                                //loop.quit();
-                            }
-                        });
-                    } catch (e) {
-                        logError(e);
-                    }
-                }
-            }
-        }
         _settingsChanged(){
-            this._checktime = this._getValue('checktime');
-            this._darkthem = this._getValue('darktheme')
-            this._tunnels = this._getValue('tunnels');
-            this._tunnelSwitches = [];
-            let all_on = false;
-            this.tunnels_section.actor.hide();
-            if(this.tunnels_section.numMenuItems > 0){
-                this.tunnels_section.removeAll();
-            }
-            for(let i=0;i<this._tunnels.length;i++){
-                let tunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
-                    _('Wireguard status'),
-                    {active: true});
-                tunnelSwitch.label.set_text(_(this._tunnels[i]));
-                tunnelSwitch.connect('toggled', this._toggleSwitch.bind(this));
-                /*
-                tunnelSwitch.connect('toggled',
-                                     (widget)=>{
-                                         log('Label: '+ widget.label.get_text());
-
-                                     });
-                */
-                this._tunnelSwitches.push(tunnelSwitch);
-                this.tunnels_section.addMenuItem(tunnelSwitch);
-            }
-            this.tunnels_section.actor.show();
-            log('Tunnel indicator: ' + all_on);
-            log(new Date().getTime());
-            this._set_icon_indicator(all_on);
+            this._loadConfiguration();
             this._update();
-            log('After update');
             if(this._sourceId > 0){
                 GLib.source_remove(this._sourceId);
             }
-            log('Check time:' + this._checktime);
             this._sourceId = GLib.timeout_add_seconds(
                 GLib.PRIORITY_DEFAULT, this._checktime,
                 this._update.bind(this));
-            log('Source id:' + this._sourceId);
+        }
+
+        disableUpdate(){
+            if(this._sourceId > 0){
+                GLib.source_remove(this._sourceId);
+            }
         }
     }
 );
@@ -300,5 +249,6 @@ function enable(){
 }
 
 function disable() {
+    tunnelIndicator.disableUpdate();
     tunnelIndicator.destroy();
 }

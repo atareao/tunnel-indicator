@@ -22,144 +22,91 @@
  * IN THE SOFTWARE.
  */
 
-imports.gi.versions.GLib = "2.0";
-imports.gi.versions.GObject = "2.0";
-imports.gi.versions.Gio = "2.0";
-imports.gi.versions.Gtk = "3.0";
-
 const {GLib, GObject, Gio, Gtk} = imports.gi;
 
-const ExtensionUtils = imports.misc.extensionUtils;
-const Extension = ExtensionUtils.getCurrentExtension();
+const Extension = imports.misc.extensionUtils.getCurrentExtension();
 const Convenience = Extension.imports.convenience;
-const PreferencesWidget = Extension.imports.preferenceswidget;
+const Widgets = Extension.imports.preferenceswidget;
+const AboutPage = Extension.imports.aboutpage.AboutPage;
 const Gettext = imports.gettext.domain(Extension.uuid);
 const _ = Gettext.gettext;
 
+const DialogWidgets = Extension.imports.dialogwidgets;
 
 function init() {
     Convenience.initTranslations();
 }
 
-var AboutWidget = GObject.registerClass(
-    {
-        GTypeName: Extension.uuid.replace(/[\W_]+/g, '_') + '_AboutWidget'
-    },
-    class AboutWidget extends Gtk.Grid{
-        _init(){
-            super._init({
-                margin_bottom: 18,
-                row_spacing: 8,
-                hexpand: true,
-                halign: Gtk.Align.CENTER,
-                orientation: Gtk.Orientation.VERTICAL
-            });
-
-            let aboutIcon = Gtk.Image.new_from_file(
-                this._get_icon_file('tunnel-icon'));
-            this.add(aboutIcon);
-
-            let aboutName = new Gtk.Label({
-                label: "<b>" + _("Tunnel Indicator") + "</b>",
-                use_markup: true
-            });
-            this.add(aboutName);
-
-            let aboutVersion = new Gtk.Label({ label: _('Version: ') + Extension.metadata.version.toString() });
-            this.add(aboutVersion);
-
-            let aboutDescription = new Gtk.Label({
-                label:  Extension.metadata.description
-            });
-            this.add(aboutDescription);
-
-            let aboutWebsite = new Gtk.Label({
-                label: '<a href="%s">%s</a>'.format(
-                    Extension.metadata.url,
-                    _("Atareao")
-                ),
-                use_markup: true
-            });
-            this.add(aboutWebsite);
-
-            let aboutCopyright = new Gtk.Label({
-                label: "<small>" + _('Copyright © 2020 Lorenzo Carbonell') + "</small>",
-                use_markup: true
-            });
-            this.add(aboutCopyright);
-
-            let aboutLicense = new Gtk.Label({
-                label: "<small>" +
-                _("THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n") + 
-                _("IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n") + 
-                _("FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n") + 
-                _("AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n") + 
-                _("LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\n") + 
-                _("FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS\n") + 
-                _("IN THE SOFTWARE.\n") + 
-                "</small>",
-                use_markup: true,
-                justify: Gtk.Justification.CENTER
-            });
-        this.add(aboutLicense);
-        }
-        _get_icon_file(icon_name){
-            let base_icon = Extension.path + '/icons/' + icon_name;
-            let file_icon = Gio.File.new_for_path(base_icon + '.png')
-            if(file_icon.query_exists(null) == false){
-                file_icon = Gio.File.new_for_path(base_icon + '.svg')
-            }
-            if(file_icon.query_exists(null) == false){
-                return null;
-            }
-            return file_icon.get_path();
-        }
-    }
-);
-
 var TunnelPreferencesWidget = GObject.registerClass(
-    class TunnelPreferencesWidget extends PreferencesWidget.Stack{
+    class TunnelPreferencesWidget extends Widgets.ListWithStack{
         _init(){
             super._init();
 
-            Gtk.IconTheme.get_default().append_search_path(
-                Extension.dir.get_child('icons').get_path());
-
-            let preferencesPage = new PreferencesWidget.Page();
-            this.add_titled(preferencesPage, "preferences", _("Preferences"));
+            let preferencesPage = new Widgets.Page();
 
             var settings = Convenience.getSettings();
-            
-            let indicatorSection = preferencesPage.addSection(_("Indicator options"), null, {});
-            indicatorSection.addGSetting(settings, "tunnels");
-            indicatorSection.addGSetting(settings, "checktime");
-            let appearanceSection = preferencesPage.addSection(_("General options"), null, {});
-            appearanceSection.addGSetting(settings, "darktheme");
 
-            // About Page
-            let aboutPage = this.addPage(
-                "about",
-                _("About"),
-                { vscrollbar_policy: Gtk.PolicyType.NEVER }
-            );
-            aboutPage.box.add(new AboutWidget());
-            aboutPage.box.margin_top = 18;
+            const keyLabel = _("Name");
+            const valueLabel = _("Tunnel");
+
+            let tunnelsSection = new Widgets.ArrayKeyValueSetting(
+                settings, "tunnels", keyLabel, valueLabel);
+            preferencesPage.addFrame(_("Tunnels"), tunnelsSection);
+            tunnelsSection.connect("edit", ()=>{
+                log("edit");
+            });
+
+            const addTunnelsSection = preferencesPage.addFrame("");
+            const buttonAdd = new Gtk.Button({
+                iconName: 'list-add-symbolic',
+                hexpand: true,
+                vexpand: false,
+                halign: Gtk.Align.END,
+                valign: Gtk.Align.CENTER,
+            });
+            buttonAdd.connect('clicked',()=>{
+                const dialog = new DialogWidgets.KeyValueDialog(
+                    this, _("Add"), keyLabel, valueLabel);
+                dialog.connect("response", (widget, response_id)=>{
+                    const new_name = dialog.getKey();
+                    const new_service = dialog.getValue();
+                    if(response_id == Gtk.ResponseType.OK){
+                        tunnelsSection.addRow(new_name, new_service);
+                        tunnelsSection.updateSettings();
+                    }
+                    dialog.hide();
+                    dialog.destroy();
+                });
+                dialog.show();
+            });
+            addTunnelsSection.addWidget(_("Add more tunnels"), buttonAdd);
+
+            const checkPage = new Widgets.Page();
+            const checkSection = checkPage.addFrame(_("Check time"));
+            checkSection.addWidgetSetting(
+                settings, "checktime",
+                new Widgets.NumberSetting(settings, "checktime", 5, 60 * 100));
+
+            const themePage = new Widgets.Page();
+            const styleSection = themePage.addFrame(_("Theme"));
+            styleSection.addGSetting(settings, "darktheme");
+
+            this.add(_("Tunnels Preferences"), "preferences-other-symbolic",
+                     preferencesPage);
+            this.add(_("Check time"), "time", checkPage);
+            this.add(_("Style"), "style", themePage);
+            this.add(_("About"), "help-about-symbolic", new AboutPage());
         }
     }
 );
 
 function buildPrefsWidget() {
     let preferencesWidget = new TunnelPreferencesWidget();
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 0, () => {
-        let prefsWindow = preferencesWidget.get_toplevel()
-        prefsWindow.set_position(Gtk.WindowPosition.CENTER_ALWAYS);
-        prefsWindow.get_titlebar().custom_title = preferencesWidget.switcher;
-        let icon = Extension.path + '/icons/tunnel-icon.svg';
-        log(icon);
-        prefsWindow.set_icon_from_file(icon);
-        return false;
+    preferencesWidget.connect("realize", ()=>{
+        const window = preferencesWidget.get_root();
+        window.set_title(_("Tunnel Indicator Configuration"));
+        window.default_height = 800;
+        window.default_width = 850;
     });
-
-    preferencesWidget.show_all();
     return preferencesWidget;
 }
