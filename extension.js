@@ -22,14 +22,6 @@
  * IN THE SOFTWARE.
  */
 
-imports.gi.versions.Gtk = "3.0";
-imports.gi.versions.Gdk = "3.0";
-imports.gi.versions.Gio = "2.0";
-imports.gi.versions.Clutter = "1.0";
-imports.gi.versions.St = "1.0";
-imports.gi.versions.GObject = "3.0";
-imports.gi.versions.GLib = "2.0";
-
 const {Gtk, Gdk, Gio, Clutter, St, GObject, GLib} = imports.gi;
 
 const MessageTray = imports.ui.messageTray;
@@ -46,6 +38,21 @@ const Gettext = imports.gettext.domain(Extension.uuid);
 const _ = Gettext.gettext;
 
 
+// A simple asynchronous read loop
+function readOutput(stream, lineBuffer) {
+    stream.read_line_async(0, null, (stream, res) => {
+        try {
+            let line = stream.read_line_finish_utf8(res)[0];
+
+            if (line !== null) {
+                lineBuffer.push(line);
+                readOutput(stream, lineBuffer);
+            }
+        } catch (e) {
+            logError(e);
+        }
+    });
+}
 var TunnelIndicator = GObject.registerClass(
     class TunnelIndicator extends PanelMenu.Button{
         _init(){
@@ -136,29 +143,82 @@ var TunnelIndicator = GObject.registerClass(
             }
         }
 
-        _toggleSwitch(widget, value){
+        _executeCommandAsync(command){
             try {
-                let setstatus = ((value == true) ? 'start': 'stop');
-                let tunnel = tunnelSwitch.label.get_name();
-                let command = ["pgrep", "-f", `"ssh ${tunnel}"`];
-                let proc = Gio.Subprocess.new(
+                let [, pid, stdin, stdout, stderr] = GLib.spawn_async_with_pipes(
+                    // Working directory, passing %null to use the parent's
+                    null,
+                    // An array of arguments
                     command,
-                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                    // Process ENV, passing %null to use the parent's
+                    null,
+                    // Flags; we need to use PATH so `ls` can be found and also need to know
+                    // when the process has finished to check the output and status.
+                    GLib.SpawnFlags.SEARCH_PATH | GLib.SpawnFlags.DO_NOT_REAP_CHILD,
+                    // Child setup function
+                    null
                 );
-                proc.communicate_utf8_async(null, null, (proc, res) => {
-                    try{
-                        let [, stdout, stderr] = proc.communicate_utf8_finish(res);
-                        log("=====================");
-                        log(stdout);
-                        log(stderr);
-                        log("=====================");
-                        this._update();
-                    }catch(e){
-                        logError(e);
+
+                // Any unsused streams still have to be closed explicitly, otherwise the
+                // file descriptors may be left open
+                GLib.close(stdin);
+
+                // Okay, now let's get output stream for `stdout`
+                let stdoutStream = new Gio.DataInputStream({
+                    base_stream: new Gio.UnixInputStream({
+                        fd: stdout,
+                        close_fd: true
+                    }),
+                    close_base_stream: true
+                });
+
+                // We'll read the output asynchronously to avoid blocking the main thread
+                let stdoutLines = [];
+                readOutput(stdoutStream, stdoutLines);
+
+                // We want the real error from `stderr`, so we'll have to do the same here
+                let stderrStream = new Gio.DataInputStream({
+                    base_stream: new Gio.UnixInputStream({
+                        fd: stderr,
+                        close_fd: true
+                    }),
+                    close_base_stream: true
+                });
+
+                let stderrLines = [];
+                readOutput(stderrStream, stderrLines);
+
+                // Watch for the process to finish, being sure to set a lower priority than
+                // we set for the read loop, so we get all the output
+                GLib.child_watch_add(GLib.PRIORITY_DEFAULT_IDLE, pid, (pid, status) => {
+                    if (status === 0) {
+                        log(stdoutLines.join('\n'));
+                    } else {
+                        logError(new Error(stderrLines.join('\n')));
                     }
+                    // Ensure we close the remaining streams and process
+                    stdoutStream.close(null);
+                    GLib.spawn_close_pid(pid);
+                    this._update();
                 });
             } catch (e) {
                 logError(e);
+            }
+        }
+
+        _toggleSwitch(widget, value){
+            let command = widget.label.get_name();
+            let command_check = 'pgrep -f "ssh ' + command +'"';
+            let [res, out, err, status] = GLib.spawn_command_line_sync(command_check);
+            if((status == 0) !== value){
+                let acommand = null;
+                if(value){
+                    acommand = ['ssh'].concat(command.split(' '));
+                }else{
+                    let pid = ByteArray.toString(out).split('\n')[0];
+                    acommand = ['kill', pid];
+                }
+                this._executeCommandAsync(acommand, this._update);
             }
         }
         _getValue(keyName){
@@ -168,28 +228,15 @@ var TunnelIndicator = GObject.registerClass(
         _update(){
             this._tunnelsSwitches.forEach((tunnelSwitch, index, array)=>{
                 try{
-                    let tunnel = tunnelSwitch.label.name;
-                    log(tunnel);
-                    let command = ["pgrep", "-f", `"ssh ${tunnel}"`];
-                    let proc = Gio.Subprocess.new(
-                        command,
-                        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                    );
-                    proc.communicate_utf8_async(null, null, (proc, res) => {
-                        try {
-                            log(res);
-                            let [, stdout, stderr] = proc.communicate_utf8_finish(res);
-                            let active = (stdout.indexOf('Active: active') > -1);
-                            GObject.signal_handlers_block_by_func(tunnelSwitch,
-                                                          this._toggleSwitch);
-                            tunnelSwitch.setToggleState(active);
-                            GObject.signal_handlers_unblock_by_func(tunnelSwitch,
-                                                            this._toggleSwitch);
-                            this._checkStatus();
-                        } catch (e) {
-                            logError(e);
-                        }
-                    });
+                    const tunnel = tunnelSwitch.label.name;
+                    const command = `pgrep -f "ssh ${tunnel}"`;
+                    const [, , , ison] = GLib.spawn_command_line_sync(command);
+                    GObject.signal_handlers_block_by_func(
+                        tunnelSwitch, this._toggleSwitch);
+                    tunnelSwitch.setToggleState(ison == 0);
+                    GObject.signal_handlers_unblock_by_func(
+                        tunnelSwitch, this._toggleSwitch);
+                    this._checkStatus();
                 } catch (e) {
                     logError(e);
                 }
