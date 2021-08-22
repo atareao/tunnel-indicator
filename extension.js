@@ -113,7 +113,7 @@ var TunnelIndicator = GObject.registerClass(
             let all_on = false;
             this._tunnelSwitches.forEach((tunnelSwitch, index, array)=>{
                 log(tunnelSwitch.label.get_text());
-                let command = 'pgrep -f "ssh ' + tunnelSwitch.label.get_text() + '"';
+                let command = 'pgrep -f "ssh ' + tunnelSwitch.label.get_name() + '"';
                 let [res, out, err, status] = GLib.spawn_command_line_sync(command);
                 log(command);
                 if(status == 0){
@@ -209,7 +209,7 @@ var TunnelIndicator = GObject.registerClass(
             return menu_help;
         }
         _toggleSwitch(widget, value){
-            let command = widget.label.get_text();
+            let command = widget.label.get_name();
             let command_check = 'pgrep -f "ssh ' + command +'"';
             let [res, out, err, status] = GLib.spawn_command_line_sync(command_check);
             if((status == 0) !== value){
@@ -255,10 +255,12 @@ var TunnelIndicator = GObject.registerClass(
                 this.tunnels_section.removeAll();
             }
             for(let i=0;i<this._tunnels.length;i++){
+                let [name, command] = this._tunnels[i].split("|");
+                command = command || name;
                 let tunnelSwitch = new PopupMenu.PopupSwitchMenuItem(
-                    _('Wireguard status'),
+                    name,
                     {active: true});
-                tunnelSwitch.label.set_text(_(this._tunnels[i]));
+                tunnelSwitch.label.set_name(command);
                 tunnelSwitch.connect('toggled', this._toggleSwitch.bind(this));
                 /*
                 tunnelSwitch.connect('toggled',
